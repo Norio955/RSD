@@ -38,6 +38,19 @@ public class LocationController {
         }
 
         Location existingLocation = optionalLocation.get();
+        if (updatedLocation.getVersion() == null){
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Validation error: version is required");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        if (!updatedLocation.getVersion().equals(existingLocation.getVersion())) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Conflict: Location was modified by another user");
+            error.put("current_version", existingLocation.getVersion());
+
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        }
 
         if (updatedLocation.getName() != null) existingLocation.setName(updatedLocation.getName());
         if (updatedLocation.getAddress() != null) existingLocation.setAddress(updatedLocation.getAddress());
