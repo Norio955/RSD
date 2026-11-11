@@ -2,10 +2,10 @@ name: Performance Load Testing (k6)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
-  workflow_dispatch: # Дозволяє запускати тест вручну з вкладки Actions на GitHub
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
   performance-test:
@@ -46,17 +46,16 @@ jobs:
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: postgres_password
         run: |
-          java -jar target/*.jar &
+          java -jar target/*.jar > app.log 2>&1 &
           echo "Waiting for Spring Boot to start..."
-          sleep 20
+          sleep 30
 
-      - name: Install k6
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Verify API availability
         run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5B32C21E3C467351E035A9F015C6138701E0639
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install k6
+          curl --fail http://localhost:8080/actuator/health || exit 1
 
-      - name: Run k6 Load Test
+      - name: Run k6 Smoke Test
         run: k6 run tests/performance-tests/smoke-test.js
