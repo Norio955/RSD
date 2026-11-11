@@ -53,9 +53,5 @@ jobs:
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Verify API availability
-        run: |
-          curl --fail http://localhost:8080/actuator/health || exit 1
-
       - name: Run k6 Smoke Test
         run: k6 run tests/performance-tests/smoke-test.js
