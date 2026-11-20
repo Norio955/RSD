@@ -1,15 +1,57 @@
-version: '3.8'
 services:
+
+  # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
-    container_name: travel_db
+    image: postgres:15
+
+    container_name: traveler_postgres
+
     environment:
-      POSTGRES_USER: travel
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: travel_planner
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     ports:
       - "5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # Spring Boot API
+  app:
+    build: .
+
+    container_name: traveler_api
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+
+    ports:
+      - "8080:8080"
+
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
 volumes:
   postgres_data:
