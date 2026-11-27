@@ -1,10 +1,25 @@
 services:
 
-  # PostgreSQL Database
+  # PostgreSQL Publisher (Master)
   postgres:
     image: postgres:15
 
     container_name: traveler_postgres
+
+    command:
+      - "postgres"
+      - "-c"
+      - "listen_addresses=*"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_logical_replication_workers=4"
+      - "-c"
+      - "max_worker_processes=10"
 
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -16,6 +31,9 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-migrations:ro
+      - ./db/replications/publisher:/docker-entrypoint-replications:ro
+      - ./db/replications/common:/docker-entrypoint-initdb.d:ro
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -23,11 +41,29 @@ services:
       timeout: 5s
       retries: 5
 
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
+  # PostgreSQL Subscriber (Replica)
+  postgres_sub:
+    image: postgres:15
+
+    container_name: traveler_replica
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "55432:5432"
+
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-migrations:ro
+      - ./db/replications/subscriber:/docker-entrypoint-replications:ro
+      - ./db/replications/common:/docker-entrypoint-initdb.d:ro
+
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # Spring Boot API
   app:
@@ -47,11 +83,6 @@ services:
     ports:
       - "8080:8080"
 
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-
 volumes:
   postgres_data:
+  postgres_replica_data:
